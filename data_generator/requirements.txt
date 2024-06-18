@@ -1,0 +1,5 @@
+python-dotenv
+pymysql
+sqlalchemy
+mysql-connector-python
+faker

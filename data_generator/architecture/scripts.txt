@@ -1,0 +1,1005 @@
+1) relative path: application/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: application/use_cases/address_register_use_case.py
+
+2) content:
+from typing import Dict
+from faker import Faker
+import uuid
+from src.interfaces.address_register import AddressRegister
+from src.infra.repositories.addresses_repository import AddressesRepository
+
+class AddressRegisterUseCase(AddressRegister):
+    def __init__(self, address_repository: AddressesRepository):
+        self.address_repository = address_repository
+        self.fake = Faker()
+
+    def register(self, customer_id: str = None, street: str = None, city: str = None, state: str = None, zipcode: str = None, country: str = None) -> Dict:
+        address_id = str(uuid.uuid4())
+        if not customer_id:
+            customer_id = self.fake.uuid4()
+        if not street:
+            street = self.fake.street_address()
+        if not city:
+            city = self.fake.city()
+        if not state:
+            state = self.fake.state()
+        if not zipcode:
+            zipcode = self.fake.zipcode()
+        if not country:
+            country = self.fake.country()
+        
+        self.address_repository.insert_address(address_id, customer_id, street, city, state, zipcode, country)
+        return {
+            "address_id": address_id,
+            "customer_id": customer_id,
+            "street": street,
+            "city": city,
+            "state": state,
+            "zipcode": zipcode,
+            "country": country
+        }
+
+----------------------------------------
+1) relative path: application/use_cases/customer_register_use_case.py
+
+2) content:
+from typing import Dict
+from faker import Faker
+import uuid
+from src.interfaces.customer_register import CustomerRegister
+from src.infra.repositories.customers_repository import CustomersRepository
+from src.infra.repositories.addresses_repository import AddressesRepository
+
+class CustomerRegisterUseCase(CustomerRegister):
+    def __init__(self, customer_repository: CustomersRepository, address_repository: AddressesRepository):
+        self.customer_repository = customer_repository
+        self.address_repository = address_repository
+        self.fake = Faker()
+
+    def register(self, customer_name: str = None, email: str = None, phone_number: str = None) -> Dict:
+        customer_id = str(uuid.uuid4())
+        if not customer_name:
+            customer_name = self.fake.name()
+        if not email:
+            email = self.fake.email()
+        if not phone_number:
+            phone_number = self.fake.phone_number()[:20]  # Truncate the phone number to 20 characters
+
+        self.customer_repository.insert_customer(customer_id, customer_name, email, phone_number, None)
+        
+        # Create and insert the address using the customer_id
+        address_id = str(uuid.uuid4())
+        self.address_repository.insert_address(
+            address_id,
+            customer_id,
+            self.fake.street_address(),
+            self.fake.city(),
+            self.fake.state(),
+            self.fake.zipcode(),
+            self.fake.country()
+        )
+
+        # Update the customer record with the newly created address_id
+        self.customer_repository.update_customer_address(customer_id, address_id)
+
+        return {
+            "customer_id": customer_id,
+            "customer_name": customer_name,
+            "email": email,
+            "phone_number": phone_number,
+            "address_id": address_id
+        }
+----------------------------------------
+1) relative path: application/use_cases/order_item_register_use_case.py
+
+2) content:
+from typing import Dict
+from faker import Faker
+import uuid
+from src.interfaces.order_item_register import OrderItemRegister
+from src.infra.repositories.order_items_repository import OrderItemsRepository
+from src.infra.repositories.products_repository import ProductsRepository
+
+class OrderItemRegisterUseCase(OrderItemRegister):
+    def __init__(self, order_item_repository: OrderItemsRepository, product_repository: ProductsRepository):
+        self.order_item_repository = order_item_repository
+        self.product_repository = product_repository
+        self.fake = Faker()
+
+    def register(self, order_id: str = None, product_id: str = None, quantity: int = None, price: float = None) -> Dict:
+        order_item_id = str(uuid.uuid4())
+        if not order_id:
+            order_id = str(uuid.uuid4())
+        if not product_id:
+            product_id = str(uuid.uuid4())
+            # Insert a dummy product if it doesn't exist
+            self.product_repository.insert_product(
+                product_id, 
+                self.fake.word(), 
+                self.fake.word(), 
+                round(self.fake.random.uniform(10.0, 1000.0), 2), 
+                self.fake.random_int(min=0, max=1000)
+            )
+        if not quantity:
+            quantity = self.fake.random_int(min=1, max=10)
+        if not price:
+            price = round(self.fake.random.uniform(10.0, 1000.0), 2)
+
+        self.order_item_repository.insert_order_item(order_item_id, order_id, product_id, quantity, price)
+        return {
+            "order_item_id": order_item_id,
+            "order_id": order_id,
+            "product_id": product_id,
+            "quantity": quantity,
+            "price": price
+        }
+
+----------------------------------------
+1) relative path: application/use_cases/order_register_use_case.py
+
+2) content:
+from typing import Dict
+from faker import Faker
+import uuid
+from src.interfaces.order_register import OrderRegister
+from src.infra.repositories.orders_repository import OrdersRepository
+
+class OrderRegisterUseCase(OrderRegister):
+    def __init__(self, order_repository: OrdersRepository):
+        self.order_repository = order_repository
+        self.fake = Faker()
+
+    def register(self, customer_id: str, order_timestamp: str = None, total_amount: float = None) -> Dict:
+        order_id = str(uuid.uuid4())
+        if not order_timestamp:
+            order_timestamp = self.fake.date_time_this_year().isoformat()
+        if not total_amount:
+            total_amount = round(self.fake.random.uniform(10.0, 5000.0), 2)
+
+        self.order_repository.insert_order(order_id, customer_id, order_timestamp, total_amount)
+
+        return {
+            "order_id": order_id,
+            "customer_id": customer_id,
+            "order_timestamp": order_timestamp,
+            "total_amount": total_amount
+        }
+----------------------------------------
+1) relative path: application/use_cases/product_register_use_case.py
+
+2) content:
+from typing import Dict
+from faker import Faker
+import uuid
+from src.interfaces.product_register import ProductRegister
+from src.infra.repositories.products_repository import ProductsRepository
+
+class ProductRegisterUseCase(ProductRegister):
+    def __init__(self, product_repository: ProductsRepository):
+        self.product_repository = product_repository
+        self.fake = Faker()
+
+    def register(self, product_name: str = None, category: str = None, price: float = None, stock_quantity: int = None) -> Dict:
+        product_id = str(uuid.uuid4())
+        if not product_name:
+            product_name = self.fake.word()
+        if not category:
+            category = self.fake.word()
+        if not price:
+            price = round(self.fake.random.uniform(10.0, 1000.0), 2)
+        if not stock_quantity:
+            stock_quantity = self.fake.random_int(min=0, max=1000)
+        
+        self.product_repository.insert_product(product_id, product_name, category, price, stock_quantity)
+        return {
+            "product_id": product_id,
+            "product_name": product_name,
+            "category": category,
+            "price": price,
+            "stock_quantity": stock_quantity
+        }
+
+----------------------------------------
+1) relative path: domain/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: domain/models/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: domain/models/addresses.py
+
+2) content:
+class Address:
+    def __init__(self, address_id: str, customer_id: str, street: str, city: str, state: str, zipcode: str, country: str) -> None:
+        self.address_id = address_id
+        self.customer_id = customer_id
+        self.street = street
+        self.city = city
+        self.state = state
+        self.zipcode = zipcode
+        self.country = country
+
+----------------------------------------
+1) relative path: domain/models/customers.py
+
+2) content:
+class Customer:
+    def __init__(self, customer_id: str, customer_name: str, email: str, phone_number: str, address_id: str) -> None:
+        self.customer_id = customer_id
+        self.customer_name = customer_name
+        self.email = email
+        self.phone_number = phone_number
+        self.address_id = address_id
+----------------------------------------
+1) relative path: domain/models/order_items.py
+
+2) content:
+class OrderItem:
+    def __init__(self, order_item_id: str, order_id: str, product_id: str, quantity: int, price: float) -> None:
+        self.order_item_id = order_item_id
+        self.order_id = order_id
+        self.product_id = product_id
+        self.quantity = quantity
+        self.price = price
+
+----------------------------------------
+1) relative path: domain/models/orders.py
+
+2) content:
+class Order:
+    def __init__(self, order_id: str, customer_id: str, order_timestamp: str, total_amount: float) -> None:
+        self.order_id = order_id
+        self.customer_id = customer_id
+        self.order_timestamp = order_timestamp
+        self.total_amount = total_amount
+
+----------------------------------------
+1) relative path: domain/models/products.py
+
+2) content:
+class Product:
+    def __init__(self, product_id: str, product_name: str, category: str, price: float, stock_quantity: int) -> None:
+        self.product_id = product_id
+        self.product_name = product_name
+        self.category = category
+        self.price = price
+        self.stock_quantity = stock_quantity
+
+----------------------------------------
+1) relative path: domain/use_cases/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: domain/use_cases/product_register_use_case.py
+
+2) content:
+from typing import Dict
+from faker import Faker
+from src.interfaces.product_register import ProductRegister
+from src.infra.repositories.products_repository import ProductsRepository
+
+class ProductRegisterUseCase(ProductRegister):
+    def __init__(self, product_repository: ProductsRepository):
+        self.product_repository = product_repository
+        self.fake = Faker()
+
+    def register(self, product_name: str = None, category: str = None, price: float = None, stock_quantity: int = None) -> Dict:
+        if not product_name:
+            product_name = self.fake.word()
+        if not category:
+            category = self.fake.word()
+        if not price:
+            price = round(self.fake.random_float(min=10.0, max=1000.0), 2)
+        if not stock_quantity:
+            stock_quantity = self.fake.random_int(min=0, max=1000)
+        
+        self.product_repository.insert_product(product_name, category, price, stock_quantity)
+        return {
+            "product_name": product_name,
+            "category": category,
+            "price": price,
+            "stock_quantity": stock_quantity
+        }
+
+----------------------------------------
+1) relative path: infra/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: infra/db/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: infra/db/entities/__init__.py
+
+2) content:
+from src.infra.db.settings.base import Base
+from src.infra.db.entities.products import Product
+
+__all__ = ["Base", "Product"]
+
+----------------------------------------
+1) relative path: infra/db/entities/addresses.py
+
+2) content:
+from sqlalchemy import Column, String, ForeignKey
+from src.infra.db.settings.base import Base
+
+class Address(Base):
+    __tablename__ = "addresses"
+
+    address_id = Column(String(36), primary_key=True)
+    customer_id = Column(String(36), ForeignKey('customers.customer_id'), nullable=False)
+    street = Column(String(100), nullable=False)
+    city = Column(String(50), nullable=False)
+    state = Column(String(50), nullable=False)
+    zipcode = Column(String(20), nullable=False)
+    country = Column(String(50), nullable=False)
+
+    def __repr__(self):
+        return f"Address [address_id={self.address_id}, city={self.city}]"
+
+----------------------------------------
+1) relative path: infra/db/entities/customers.py
+
+2) content:
+from sqlalchemy import Column, String, ForeignKey
+from src.infra.db.settings.base import Base
+
+class Customer(Base):
+    __tablename__ = "customers"
+    
+    customer_id = Column(String(36), primary_key=True)
+    customer_name = Column(String(50), nullable=False)
+    email = Column(String(50), nullable=False)
+    phone_number = Column(String(30), nullable=False)  # Increase the length here
+    address_id = Column(String(36), ForeignKey('addresses.address_id'), nullable=True)
+
+    def __repr__(self):
+        return f"Customer [customer_id={self.customer_id}, customer_name={self.customer_name}]"
+----------------------------------------
+1) relative path: infra/db/entities/order_items.py
+
+2) content:
+from sqlalchemy import Column, String, Integer, Float, ForeignKey
+from src.infra.db.settings.base import Base
+
+class OrderItem(Base):
+    __tablename__ = "order_items"
+
+    order_item_id = Column(String(36), primary_key=True)
+    order_id = Column(String(36), ForeignKey('orders.order_id'), nullable=False)
+    product_id = Column(String(36), ForeignKey('products.product_id'), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    price = Column(Float, nullable=False)
+
+    def __repr__(self):
+        return f"OrderItem [order_item_id={self.order_item_id}, quantity={self.quantity}]"
+
+----------------------------------------
+1) relative path: infra/db/entities/orders.py
+
+2) content:
+from sqlalchemy import Column, String, Float, TIMESTAMP, ForeignKey
+from src.infra.db.settings.base import Base
+
+class Order(Base):
+    __tablename__ = "orders"
+
+    order_id = Column(String(36), primary_key=True)
+    customer_id = Column(String(36), ForeignKey('customers.customer_id'), nullable=False)
+    order_timestamp = Column(TIMESTAMP, nullable=False)
+    total_amount = Column(Float, nullable=False)
+
+    def __repr__(self):
+        return f"Order [order_id={self.order_id}, total_amount={self.total_amount}]"
+
+----------------------------------------
+1) relative path: infra/db/entities/products.py
+
+2) content:
+from sqlalchemy import Column, String, Integer, Float
+from src.infra.db.settings.base import Base
+
+class Product(Base):
+    __tablename__ = "products"
+
+    product_id = Column(String(36), primary_key=True)
+    product_name = Column(String(50), nullable=False)
+    category = Column(String(50), nullable=False)
+    price = Column(Float, nullable=False)
+    stock_quantity = Column(Integer, nullable=False)
+
+    def __repr__(self):
+        return f"Product [product_id={self.product_id}, product_name={self.product_name}]"
+
+----------------------------------------
+1) relative path: infra/db/settings/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: infra/db/settings/base.py
+
+2) content:
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
+
+----------------------------------------
+1) relative path: infra/db/settings/connection.py
+
+2) content:
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from dotenv import load_dotenv
+from src.infra.db.entities import Base
+
+load_dotenv()
+
+class DBConnectionHandler:
+    def __init__(self) -> None:
+        self.__connection_string = "{}://{}:{}@{}:{}/{}".format(
+            os.getenv('DB_DIALECT'),
+            os.getenv('DB_USER'),
+            os.getenv('DB_PASSWORD'),
+            os.getenv('DB_HOST'),
+            os.getenv('DB_PORT'),
+            os.getenv('DB_NAME')
+        )
+        self.__engine = self.__create_database_engine()
+        self.session = None
+
+    def __create_database_engine(self):
+        engine = create_engine(self.__connection_string)
+        return engine
+
+    def get_engine(self):
+        return self.__engine
+
+    def __enter__(self):
+        session_make = sessionmaker(bind=self.__engine)
+        self.session = session_make()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.session.close()
+
+    def init_db(self):
+        Base.metadata.create_all(self.__engine)
+
+----------------------------------------
+1) relative path: infra/db.py
+
+2) content:
+from sqlalchemy import create_engine, Column, String, Integer, Float, TIMESTAMP, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+DATABASE_URI = 'mysql+mysqlconnector://username:password@localhost:3306/your_database'
+engine = create_engine(DATABASE_URI)
+Base = declarative_base()
+
+class ProductModel(Base):
+    __tablename__ = 'products'
+    product_id = Column(String(36), primary_key=True)
+    product_name = Column(String(50))
+    category = Column(String(50))
+    price = Column(Float)
+    stock_quantity = Column(Integer)
+
+class CustomerModel(Base):
+    __tablename__ = 'customers'
+    customer_id = Column(String(36), primary_key=True)
+    customer_name = Column(String(50))
+    email = Column(String(50))
+    phone_number = Column(String(20))
+    address_id = Column(String(36), ForeignKey('addresses.address_id'))
+
+class OrderModel(Base):
+    __tablename__ = 'orders'
+    order_id = Column(String(36), primary_key=True)
+    customer_id = Column(String(36), ForeignKey('customers.customer_id'))
+    order_timestamp = Column(TIMESTAMP)
+    total_amount = Column(Float)
+
+class OrderItemModel(Base):
+    __tablename__ = 'order_items'
+    order_item_id = Column(String(36), primary_key=True)
+    order_id = Column(String(36), ForeignKey('orders.order_id'))
+    product_id = Column(String(36), ForeignKey('products.product_id'))
+    quantity = Column(Integer)
+    price = Column(Float)
+
+class AddressModel(Base):
+    __tablename__ = 'addresses'
+    address_id = Column(String(36), primary_key=True)
+    customer_id = Column(String(36), ForeignKey('customers.customer_id'))
+    street = Column(String(100))
+    city = Column(String(50))
+    state = Column(String(50))
+    zipcode = Column(String(20))
+    country = Column(String(50))
+
+Base.metadata.create_all(engine)
+Session = sessionmaker(bind=engine)
+
+----------------------------------------
+1) relative path: infra/repositories/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: infra/repositories/addresses_repository.py
+
+2) content:
+from typing import List
+from src.domain.models.addresses import Address
+from src.infra.db.entities.addresses import Address as AddressModel
+from src.infra.db.settings.connection import DBConnectionHandler
+
+class AddressesRepository:
+    def __init__(self):
+        self.db_connection_handler = DBConnectionHandler()
+
+    def insert_address(self, address_id: str, customer_id: str, street: str, city: str, state: str, zipcode: str, country: str) -> None:
+        with self.db_connection_handler as db:
+            address = AddressModel(
+                address_id=address_id,
+                customer_id=customer_id,
+                street=street,
+                city=city,
+                state=state,
+                zipcode=zipcode,
+                country=country
+            )
+            db.session.add(address)
+            db.session.commit()
+
+    def select_address(self, address_id: str) -> List[Address]:
+        with self.db_connection_handler as db:
+            addresses = db.session.query(AddressModel).filter_by(address_id=address_id).all()
+            return [Address(
+                address_id=address.address_id,
+                customer_id=address.customer_id,
+                street=address.street,
+                city=address.city,
+                state=address.state,
+                zipcode=address.zipcode,
+                country=address.country
+            ) for address in addresses]
+
+----------------------------------------
+1) relative path: infra/repositories/customers_repository.py
+
+2) content:
+from typing import List
+from src.domain.models.customers import Customer
+from src.infra.db.entities.customers import Customer as CustomerModel
+from src.infra.db.settings.connection import DBConnectionHandler
+
+class CustomersRepository:
+    def __init__(self):
+        self.db_connection_handler = DBConnectionHandler()
+
+    def insert_customer(self, customer_id: str, customer_name: str, email: str, phone_number: str, address_id: str) -> None:
+        with self.db_connection_handler as db:
+            customer = CustomerModel(
+                customer_id=customer_id, 
+                customer_name=customer_name, 
+                email=email, 
+                phone_number=phone_number, 
+                address_id=address_id
+            )
+            db.session.add(customer)
+            db.session.commit()
+
+    def update_customer_address(self, customer_id: str, address_id: str) -> None:
+        with self.db_connection_handler as db:
+            customer = db.session.query(CustomerModel).filter_by(customer_id=customer_id).first()
+            if customer:
+                customer.address_id = address_id
+                db.session.commit()
+
+    def select_customer(self, customer_name: str) -> List[Customer]:
+        with self.db_connection_handler as db:
+            customers = db.session.query(CustomerModel).filter_by(customer_name=customer_name).all()
+            return [
+                Customer(
+                    customer_id=customer.customer_id,
+                    customer_name=customer.customer_name,
+                    email=customer.email,
+                    phone_number=customer.phone_number,
+                    address_id=customer.address_id
+                ) for customer in customers
+            ]
+
+----------------------------------------
+1) relative path: infra/repositories/order_items_repository.py
+
+2) content:
+from typing import List
+from src.domain.models.order_items import OrderItem
+from src.infra.db.entities.order_items import OrderItem as OrderItemModel
+from src.infra.db.settings.connection import DBConnectionHandler
+
+class OrderItemsRepository:
+    def __init__(self):
+        self.db_connection_handler = DBConnectionHandler()
+
+    def insert_order_item(self, order_item_id, order_id, product_id, quantity, price):
+        with self.db_connection_handler as db:
+            order_item = OrderItemModel(
+                order_item_id=order_item_id,
+                order_id=order_id,
+                product_id=product_id,
+                quantity=quantity,
+                price=price  # Add this line to include the price
+            )
+            db.session.add(order_item)
+            db.session.commit()
+
+    def select_order_item(self, order_item_id: str) -> List[OrderItem]:
+        with self.db_connection_handler as db:
+            order_items = db.session.query(OrderItemModel).filter_by(order_item_id=order_item_id).all()
+            return [OrderItem(
+                order_item_id=order_item.order_item_id,
+                order_id=order_item.order_id,
+                product_id=order_item.product_id,
+                quantity=order_item.quantity,
+                price=order_item.price
+            ) for order_item in order_items]
+
+----------------------------------------
+1) relative path: infra/repositories/orders_repository.py
+
+2) content:
+from typing import List
+from src.domain.models.orders import Order
+from src.infra.db.entities.orders import Order as OrderModel
+from src.infra.db.settings.connection import DBConnectionHandler
+
+class OrdersRepository:
+    def __init__(self):
+        self.db_connection_handler = DBConnectionHandler()
+
+    def insert_order(self, order_id, customer_id, order_timestamp, total_amount):
+        with self.db_connection_handler as db:
+            order = OrderModel(
+                order_id=order_id,
+                customer_id=customer_id,
+                order_timestamp=order_timestamp,
+                total_amount=total_amount  # Add this line to include the total_amount
+            )
+            db.session.add(order)
+            db.session.commit()
+
+    def select_order(self, order_id: str) -> List[Order]:
+        with self.db_connection_handler as db:
+            orders = db.session.query(OrderModel).filter_by(order_id=order_id).all()
+            return [Order(
+                order_id=order.order_id,
+                customer_id=order.customer_id,
+                order_timestamp=order.order_timestamp,
+                total_amount=order.total_amount
+            ) for order in orders]
+
+----------------------------------------
+1) relative path: infra/repositories/products_repository.py
+
+2) content:
+from typing import List
+from src.domain.models.products import Product
+from src.infra.db.entities.products import Product as ProductModel
+from src.infra.db.settings.connection import DBConnectionHandler
+
+class ProductsRepository:
+    def __init__(self):
+        self.db_connection_handler = DBConnectionHandler()
+
+    def insert_product(self, product_id: str, product_name: str, category: str, price: float, stock_quantity: int) -> None:
+        with self.db_connection_handler as db:
+            product = ProductModel(product_id=product_id, product_name=product_name, category=category, price=price, stock_quantity=stock_quantity)
+            db.session.add(product)
+            db.session.commit()
+
+    def select_product(self, product_name: str) -> List[Product]:
+        with self.db_connection_handler as db:
+            products = db.session.query(ProductModel).filter_by(product_name=product_name).all()
+            return [Product(
+                product_id=product.product_id,
+                product_name=product.product_name,
+                category=product.category,
+                price=product.price,
+                stock_quantity=product.stock_quantity
+            ) for product in products]
+
+----------------------------------------
+1) relative path: interfaces/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: interfaces/address_register.py
+
+2) content:
+from abc import ABC, abstractmethod
+from typing import Dict
+
+class AddressRegister(ABC):
+
+    @abstractmethod
+    def register(self, customer_id: str, street: str, city: str, state: str, zipcode: str, country: str) -> Dict: 
+        pass
+
+----------------------------------------
+1) relative path: interfaces/controllers/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: interfaces/controllers/address_register_controller.py
+
+2) content:
+from src.interfaces.address_register import AddressRegister
+from typing import Dict
+
+class AddressRegisterController:
+    def __init__(self, address_register: AddressRegister):
+        self.address_register = address_register
+
+    def register_address(self, customer_id: str = None, street: str = None, city: str = None, state: str = None, zipcode: str = None, country: str = None) -> Dict:
+        return self.address_register.register(customer_id, street, city, state, zipcode, country)
+
+----------------------------------------
+1) relative path: interfaces/controllers/customer_register_controller.py
+
+2) content:
+from src.interfaces.customer_register import CustomerRegister
+from typing import Dict
+
+class CustomerRegisterController:
+    def __init__(self, customer_register: CustomerRegister):
+        self.customer_register = customer_register
+
+    def register_customer(self, customer_name: str = None, email: str = None, phone_number: str = None) -> Dict:
+        return self.customer_register.register(customer_name, email, phone_number)
+
+----------------------------------------
+1) relative path: interfaces/controllers/order_item_register_controller.py
+
+2) content:
+from src.interfaces.order_item_register import OrderItemRegister
+from typing import Dict
+
+class OrderItemRegisterController:
+    def __init__(self, order_item_register: OrderItemRegister):
+        self.order_item_register = order_item_register
+
+    def register_order_item(self, order_id: str = None, product_id: str = None, quantity: int = None, price: float = None) -> Dict:
+        return self.order_item_register.register(order_id, product_id, quantity, price)
+
+----------------------------------------
+1) relative path: interfaces/controllers/order_register_controller.py
+
+2) content:
+from src.interfaces.order_register import OrderRegister
+from typing import Dict
+
+class OrderRegisterController:
+    def __init__(self, order_register: OrderRegister):
+        self.order_register = order_register
+
+    def register_order(self, customer_id: str = None, order_timestamp: str = None, total_amount: float = None) -> Dict:
+        return self.order_register.register(customer_id, order_timestamp, total_amount)
+
+----------------------------------------
+1) relative path: interfaces/controllers/product_register_controller.py
+
+2) content:
+from src.interfaces.product_register import ProductRegister
+from typing import Dict
+
+class ProductRegisterController:
+    def __init__(self, product_register: ProductRegister):
+        self.product_register = product_register
+
+    def register_product(self, product_name: str = None, category: str = None, price: float = None, stock_quantity: int = None) -> Dict:
+        return self.product_register.register(product_name, category, price, stock_quantity)
+
+----------------------------------------
+1) relative path: interfaces/customer_register.py
+
+2) content:
+from abc import ABC, abstractmethod
+from typing import Dict
+
+class CustomerRegister(ABC):
+
+    @abstractmethod
+    def register(self, customer_name: str, email: str, phone_number: str, address_id: str) -> Dict: 
+        pass
+
+----------------------------------------
+1) relative path: interfaces/order_item_register.py
+
+2) content:
+from abc import ABC, abstractmethod
+from typing import Dict
+
+class OrderItemRegister(ABC):
+
+    @abstractmethod
+    def register(self, order_id: str, product_id: str, quantity: int, price: float) -> Dict: 
+        pass
+
+----------------------------------------
+1) relative path: interfaces/order_register.py
+
+2) content:
+from abc import ABC, abstractmethod
+from typing import Dict
+
+class OrderRegister(ABC):
+
+    @abstractmethod
+    def register(self, customer_id: str, order_timestamp: str, total_amount: float) -> Dict: 
+        pass
+
+----------------------------------------
+1) relative path: interfaces/product_register.py
+
+2) content:
+from abc import ABC, abstractmethod
+from typing import Dict
+
+class ProductRegister(ABC):
+
+    @abstractmethod
+    def register(self, product_name: str, category: str, price: float, stock_quantity: int) -> Dict: 
+        pass
+
+----------------------------------------
+1) relative path: main/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: main/composers/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: main/composers/address_register_composer.py
+
+2) content:
+from src.application.use_cases.address_register_use_case import AddressRegisterUseCase
+from src.infra.repositories.addresses_repository import AddressesRepository
+from src.interfaces.controllers.address_register_controller import AddressRegisterController
+
+def address_register_composer():
+    address_repository = AddressesRepository()
+    address_register_use_case = AddressRegisterUseCase(address_repository)
+    address_register_controller = AddressRegisterController(address_register_use_case)
+    return address_register_controller
+
+----------------------------------------
+1) relative path: main/composers/customer_register_composer.py
+
+2) content:
+from src.application.use_cases.customer_register_use_case import CustomerRegisterUseCase
+from src.infra.repositories.customers_repository import CustomersRepository
+from src.infra.repositories.addresses_repository import AddressesRepository
+from src.interfaces.controllers.customer_register_controller import CustomerRegisterController
+
+def customer_register_composer():
+    customer_repository = CustomersRepository()
+    address_repository = AddressesRepository()
+    customer_register_use_case = CustomerRegisterUseCase(customer_repository, address_repository)
+    customer_register_controller = CustomerRegisterController(customer_register_use_case)
+    return customer_register_controller
+
+----------------------------------------
+1) relative path: main/composers/order_item_register_composer.py
+
+2) content:
+from src.application.use_cases.order_item_register_use_case import OrderItemRegisterUseCase
+from src.infra.repositories.order_items_repository import OrderItemsRepository
+from src.infra.repositories.products_repository import ProductsRepository
+from src.interfaces.controllers.order_item_register_controller import OrderItemRegisterController
+
+def order_item_register_composer():
+    order_item_repository = OrderItemsRepository()
+    product_repository = ProductsRepository()  # Add this line
+    order_item_register_use_case = OrderItemRegisterUseCase(order_item_repository, product_repository)  # Pass product_repository here
+    order_item_register_controller = OrderItemRegisterController(order_item_register_use_case)
+    return order_item_register_controller
+
+----------------------------------------
+1) relative path: main/composers/order_register_composer.py
+
+2) content:
+from src.application.use_cases.order_register_use_case import OrderRegisterUseCase
+from src.infra.repositories.orders_repository import OrdersRepository
+from src.interfaces.controllers.order_register_controller import OrderRegisterController
+
+def order_register_composer():
+    order_repository = OrdersRepository()
+    order_register_use_case = OrderRegisterUseCase(order_repository)
+    order_register_controller = OrderRegisterController(order_register_use_case)
+    return order_register_controller
+
+----------------------------------------
+1) relative path: main/composers/product_register_composer.py
+
+2) content:
+from src.application.use_cases.product_register_use_case import ProductRegisterUseCase
+from src.infra.repositories.products_repository import ProductsRepository
+from src.interfaces.controllers.product_register_controller import ProductRegisterController
+
+def product_register_composer():
+    product_repository = ProductsRepository()
+    product_register_use_case = ProductRegisterUseCase(product_repository)
+    product_register_controller = ProductRegisterController(product_register_use_case)
+    return product_register_controller
+
+----------------------------------------
+1) relative path: presentation/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: presentation/controllers/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: presentation/controllers/product_register_controller.py
+
+2) content:
+from src.domain.use_cases.product_register import ProductRegister
+from src.presentation.interfaces.controller_interface import ControllerInterface
+from typing import Dict
+
+class ProductRegisterController(ControllerInterface):
+    def __init__(self, product_register: ProductRegister):
+        self.product_register = product_register
+
+    def handle(self, request: Dict) -> Dict:
+        product_name = request.get("product_name")
+        category = request.get("category")
+        price = request.get("price")
+        stock_quantity = request.get("stock_quantity")
+        return self.product_register.register(product_name, category, price, stock_quantity)
+
+----------------------------------------
+1) relative path: presentation/interfaces/__init__.py
+
+2) content:
+
+----------------------------------------
+1) relative path: presentation/interfaces/controller_interface.py
+
+2) content:
+from abc import ABC, abstractmethod
+from typing import Dict
+
+class ControllerInterface(ABC):
+
+    @abstractmethod
+    def handle(self, request: Dict) -> Dict:
+        pass
+
+----------------------------------------

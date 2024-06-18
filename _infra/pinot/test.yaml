@@ -1,0 +1,1675 @@
+---
+# Source: pinot/charts/zookeeper/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: release-name-zookeeper
+  namespace: search
+  labels:
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.2.0
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: release-name
+      app.kubernetes.io/name: zookeeper
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    # Allow inbound connections to ZooKeeper
+    - ports:
+        - port: 2181
+    # Allow internal communications between nodes
+    - ports:
+        - port: 2888
+        - port: 3888
+      from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: release-name
+              app.kubernetes.io/name: zookeeper
+---
+# Source: pinot/templates/broker/poddisruptionbudget.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: release-name-pinot-broker
+spec:
+  maxUnavailable: 50%
+  selector:
+    matchLabels:
+      app: pinot
+      release: release-name
+      component: broker
+---
+# Source: pinot/templates/controller/poddisruptionbudget.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: release-name-pinot-controller
+spec:
+  maxUnavailable: 50%
+  selector:
+    matchLabels:
+      app: pinot
+      release: release-name
+      component: controller
+---
+# Source: pinot/templates/server/poddisruptionbudget.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: release-name-pinot-server
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: pinot
+      release: release-name
+      component: server
+---
+# Source: pinot/charts/zookeeper/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: release-name-zookeeper
+  namespace: search
+  labels:
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.2.0
+    app.kubernetes.io/component: zookeeper
+    role: zookeeper
+automountServiceAccountToken: false
+---
+# Source: pinot/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: release-name-pinot
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+---
+# Source: pinot/charts/zookeeper/templates/scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: release-name-zookeeper-scripts
+  namespace: search
+  labels:
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.2.0
+    app.kubernetes.io/component: zookeeper
+data:
+  init-certs.sh: |-
+    #!/bin/bash
+  setup.sh: |-
+    #!/bin/bash
+
+    # Execute entrypoint as usual after obtaining ZOO_SERVER_ID
+    # check ZOO_SERVER_ID in persistent volume via myid
+    # if not present, set based on POD hostname
+    if [[ -f "/bitnami/zookeeper/data/myid" ]]; then
+        export ZOO_SERVER_ID="$(cat /bitnami/zookeeper/data/myid)"
+    else
+        HOSTNAME="$(hostname -s)"
+        if [[ $HOSTNAME =~ (.*)-([0-9]+)$ ]]; then
+            ORD=${BASH_REMATCH[2]}
+            export ZOO_SERVER_ID="$((ORD + 1 ))"
+        else
+            echo "Failed to get index from hostname $HOSTNAME"
+            exit 1
+        fi
+    fi
+    exec /entrypoint.sh /run.sh
+---
+# Source: pinot/templates/broker/configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: release-name-pinot-broker-config
+data:
+  pinot-broker.conf: |-
+    pinot.broker.client.queryPort=8099
+    pinot.broker.routing.table.builder.class=random
+    pinot.set.instance.id.to.hostname=true
+    pinot.query.server.port=7321
+    pinot.query.runner.port=7732
+---
+# Source: pinot/templates/controller/configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: release-name-pinot-controller-config
+data:
+  pinot-controller.conf: |-
+    controller.helix.cluster.name=pinot-quickstart
+    controller.port=9000
+    controller.data.dir=/var/pinot/controller/data
+    controller.zk.str=release-name-zookeeper:2181
+    pinot.set.instance.id.to.hostname=true
+    controller.task.scheduler.enabled=true
+---
+# Source: pinot/templates/minion-stateless/configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: release-name-pinot-minion-stateless-config
+data:
+  pinot-minion-stateless.conf: |-
+    pinot.minion.port=9514
+    dataDir=/var/pinot/minion/data
+    pinot.set.instance.id.to.hostname=true
+---
+# Source: pinot/templates/minion/configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: release-name-pinot-minion-config
+data:
+  pinot-minion.conf: |-
+    pinot.minion.port=9514
+    dataDir=/var/pinot/minion/data
+    pinot.set.instance.id.to.hostname=true
+---
+# Source: pinot/templates/server/configmap.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: release-name-pinot-server-config
+data:
+  pinot-server.conf: |-
+    pinot.server.netty.port=8098
+    pinot.server.adminapi.port=8097
+    pinot.server.instance.dataDir=/var/pinot/server/data/index
+    pinot.server.instance.segmentTarDir=/var/pinot/server/data/segment
+    pinot.set.instance.id.to.hostname=true
+    pinot.server.instance.realtime.alloc.offheap=true
+    pinot.query.server.port=7321
+    pinot.query.runner.port=7732
+---
+# Source: pinot/charts/zookeeper/templates/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-zookeeper-headless
+  namespace: search
+  labels:
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.2.0
+    app.kubernetes.io/component: zookeeper
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: tcp-client
+      port: 2181
+      targetPort: client
+    - name: tcp-follower
+      port: 2888
+      targetPort: follower
+    - name: tcp-election
+      port: 3888
+      targetPort: election
+  selector:
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/component: zookeeper
+---
+# Source: pinot/charts/zookeeper/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-zookeeper
+  namespace: search
+  labels:
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.2.0
+    app.kubernetes.io/component: zookeeper
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: tcp-client
+      port: 2181
+      targetPort: client
+      nodePort: null
+  selector:
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/component: zookeeper
+---
+# Source: pinot/templates/broker/service-external.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-pinot-broker-external
+  annotations:
+    {}
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: broker
+spec:
+  type: LoadBalancer
+  ports:
+    - name: external-broker
+      port: 8099
+  selector:
+    app: pinot
+    release: release-name
+    component: broker
+---
+# Source: pinot/templates/broker/service-headless.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-pinot-broker-headless
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: broker
+spec:
+  clusterIP: None
+  ports:
+    # [pod_name].[service_name].[namespace].svc.cluster.local
+    - name: broker
+      port: 8099
+  selector:
+    app: pinot
+    release: release-name
+    component: broker
+---
+# Source: pinot/templates/broker/service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-pinot-broker
+  annotations:
+    {}
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: broker
+spec:
+  type: ClusterIP
+  ports:
+    # [pod_name].[service_name].[namespace].svc.cluster.local
+    - name: broker
+      port: 8099
+  selector:
+    app: pinot
+    release: release-name
+    component: broker
+---
+# Source: pinot/templates/controller/service-external.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-pinot-controller-external
+  annotations:
+    {}
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: controller
+spec:
+  type: LoadBalancer
+  ports:
+    - name: external-controller
+      port: 9000
+  selector:
+    app: pinot
+    release: release-name
+    component: controller
+---
+# Source: pinot/templates/controller/service-headless.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-pinot-controller-headless
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: controller
+spec:
+  clusterIP: None
+  ports:
+    # [pod_name].[service_name].[namespace].svc.cluster.local
+    - name: controller
+      port: 9000
+  selector:
+    app: pinot
+    release: release-name
+    component: controller
+---
+# Source: pinot/templates/controller/service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-pinot-controller
+  annotations:
+    {}
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: controller
+spec:
+  type: ClusterIP
+  ports:
+    # [pod_name].[service_name].[namespace].svc.cluster.local
+    - name: controller
+      port: 9000
+  selector:
+    app: pinot
+    release: release-name
+    component: controller
+---
+# Source: pinot/templates/minion/service-headless.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-pinot-minion-headless
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: minion
+spec:
+  clusterIP: None
+  ports:
+    # [pod_name].[service_name].[namespace].svc.cluster.local
+    - name: minion
+      port: 9514
+  selector:
+    app: pinot
+    release: release-name
+    component: minion
+---
+# Source: pinot/templates/minion/service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-pinot-minion
+  annotations:
+    {}
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: minion
+spec:
+  type: ClusterIP
+  ports:
+    # [pod_name].[service_name].[namespace].svc.cluster.local
+    - name: minion
+      port: 9514
+  selector:
+    app: pinot
+    release: release-name
+    component: minion
+---
+# Source: pinot/templates/server/service-headless.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-pinot-server-headless
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: server
+spec:
+  clusterIP: None
+  ports:
+    # [pod_name].[service_name].[namespace].svc.cluster.local
+    - name: netty
+      port: 8098
+      protocol: TCP
+    - name: admin
+      port: 80
+      targetPort: 8097
+      protocol: TCP
+  selector:
+    app: pinot
+    release: release-name
+    component: server
+---
+# Source: pinot/templates/server/service.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: release-name-pinot-server
+  annotations:
+    {}
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: server
+spec:
+  type: ClusterIP
+  ports:
+    # [pod_name].[service_name].[namespace].svc.cluster.local
+    - name: netty
+      port: 8098
+      protocol: TCP
+    - name: admin
+      port: 80
+      targetPort: 8097
+      protocol: TCP
+  selector:
+    app: pinot
+    release: release-name
+    component: server
+---
+# Source: pinot/templates/minion-stateless/deployment.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: release-name-pinot-minion-stateless
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: minion-stateless
+spec:
+  selector:
+    matchLabels:
+      app: pinot
+      release: release-name
+      component: minion-stateless
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: pinot-0.3.0-SNAPSHOT
+        app: pinot
+        release: release-name
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        heritage: Helm
+        component: minion-stateless
+      annotations:
+        {}
+    spec:
+      terminationGracePeriodSeconds: 30
+      serviceAccountName: release-name-pinot
+      securityContext:
+        {}
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      containers:
+      - name: minion-stateless
+        securityContext:
+          {}
+        image: "apachepinot/pinot:latest"
+        imagePullPolicy: Always
+        args: [
+          "StartMinion",
+          "-clusterName", "pinot-quickstart",
+          "-zkAddress", "release-name-zookeeper:2181",
+          "-configFileName", "/var/pinot/minion/config/pinot-minion-stateless.conf"
+        ]
+        env:
+          - name: JAVA_OPTS
+            value: "-XX:ActiveProcessorCount=2 -Xms256M -Xmx1G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xlog:gc*:file=/opt/pinot/gc-pinot-minion.log -Dlog4j2.configurationFile=/opt/pinot/etc/conf/pinot-minion-log4j2.xml -Dplugins.dir=/opt/pinot/plugins"
+          - name: LOG4J_CONSOLE_LEVEL
+            value: info
+        envFrom:
+          []
+        ports:
+          - containerPort: 9514
+            protocol: TCP
+            name: minion
+        livenessProbe:
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          failureThreshold: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+          httpGet:
+            path: /health
+            port: 9514
+        readinessProbe:
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          failureThreshold: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+          httpGet:
+            path: /health
+            port: 9514
+        startupProbe:
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          failureThreshold: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+          httpGet:
+            path: /health
+            port: 9514
+        volumeMounts:
+          - name: config
+            mountPath: /var/pinot/minion/config
+        resources:
+            requests:
+              memory: 1.25Gi
+      restartPolicy: Always
+      volumes:
+        - name: config
+          configMap:
+            name: release-name-pinot-minion-stateless-config
+        - name: data
+          emptyDir: {}
+---
+# Source: pinot/charts/zookeeper/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: release-name-zookeeper
+  namespace: search
+  labels:
+    app.kubernetes.io/instance: release-name
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.2.0
+    app.kubernetes.io/component: zookeeper
+    role: zookeeper
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: release-name
+      app.kubernetes.io/name: zookeeper
+      app.kubernetes.io/component: zookeeper
+  serviceName: release-name-zookeeper-headless
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+      labels:
+        app.kubernetes.io/instance: release-name
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: zookeeper
+        app.kubernetes.io/version: 3.9.2
+        helm.sh/chart: zookeeper-13.2.0
+        app.kubernetes.io/component: zookeeper
+    spec:
+      enableServiceLinks: true
+      serviceAccountName: release-name-zookeeper
+      
+      automountServiceAccountToken: false
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/instance: release-name
+                    app.kubernetes.io/name: zookeeper
+                    app.kubernetes.io/component: zookeeper
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
+      initContainers:
+      containers:
+        - name: zookeeper
+          image: docker.io/bitnami/zookeeper:3.9.2-debian-12-r2
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
+            runAsNonRoot: true
+            runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
+          command:
+            - /scripts/setup.sh
+          resources:
+            requests:
+              memory: 1.25Gi
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: ZOO_DATA_LOG_DIR
+              value: ""
+            - name: ZOO_PORT_NUMBER
+              value: "2181"
+            - name: ZOO_TICK_TIME
+              value: "2000"
+            - name: ZOO_INIT_LIMIT
+              value: "10"
+            - name: ZOO_SYNC_LIMIT
+              value: "5"
+            - name: ZOO_PRE_ALLOC_SIZE
+              value: "65536"
+            - name: ZOO_SNAPCOUNT
+              value: "100000"
+            - name: ZOO_MAX_CLIENT_CNXNS
+              value: "60"
+            - name: ZOO_4LW_COMMANDS_WHITELIST
+              value: "srvr, mntr, ruok"
+            - name: ZOO_LISTEN_ALLIPS_ENABLED
+              value: "no"
+            - name: ZOO_AUTOPURGE_INTERVAL
+              value: "1"
+            - name: ZOO_AUTOPURGE_RETAIN_COUNT
+              value: "5"
+            - name: ZOO_MAX_SESSION_TIMEOUT
+              value: "40000"
+            - name: ZOO_SERVERS
+              value: release-name-zookeeper-0.release-name-zookeeper-headless.search.svc.cluster.local:2888:3888::1 
+            - name: ZOO_ENABLE_AUTH
+              value: "no"
+            - name: ZOO_ENABLE_QUORUM_AUTH
+              value: "no"
+            - name: ZOO_HEAP_SIZE
+              value: "1024"
+            - name: ZOO_LOG_LEVEL
+              value: "ERROR"
+            - name: ALLOW_ANONYMOUS_LOGIN
+              value: "yes"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: ZOO_ADMIN_SERVER_PORT_NUMBER
+              value: "8080"
+          ports:
+            - name: client
+              containerPort: 2181
+            - name: http-admin
+              containerPort: 8080
+          livenessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - ZOO_HC_TIMEOUT=2 /opt/bitnami/scripts/zookeeper/healthcheck.sh
+          readinessProbe:
+            failureThreshold: 6
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - ZOO_HC_TIMEOUT=2 /opt/bitnami/scripts/zookeeper/healthcheck.sh
+          volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/zookeeper/conf
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/zookeeper/logs
+              subPath: app-logs-dir
+            - name: scripts
+              mountPath: /scripts/setup.sh
+              subPath: setup.sh
+            - name: data
+              mountPath: /bitnami/zookeeper
+      volumes:
+        - name: empty-dir
+          emptyDir: {}
+        - name: scripts
+          configMap:
+            name: release-name-zookeeper-scripts
+            defaultMode: 493
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "8Gi"
+---
+# Source: pinot/templates/broker/statefulset.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: release-name-pinot-broker
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: broker
+spec:
+  selector:
+    matchLabels:
+      app: pinot
+      release: release-name
+      component: broker
+  serviceName: release-name-pinot-broker-headless
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: pinot-0.3.0-SNAPSHOT
+        app: pinot
+        release: release-name
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        heritage: Helm
+        component: broker
+      annotations:
+        checksum/config: b6426af6821d74c336050babe831e53b07c558ec0609fdfea5bf196a5f8ffd7e
+        key1: value1
+        key2: value2
+    spec:
+      terminationGracePeriodSeconds: 30
+      serviceAccountName: release-name-pinot
+      securityContext:
+        {}
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      containers:
+      - name: broker
+        securityContext:
+          {}
+        image: "apachepinot/pinot:latest"
+        imagePullPolicy: Always
+        args: [
+          "StartBroker",
+          "-clusterName", "pinot-quickstart",
+          "-zkAddress", "release-name-zookeeper:2181",
+          "-configFileName", "/var/pinot/broker/config/pinot-broker.conf"
+        ]
+        env:
+          - name: JAVA_OPTS
+            value: "-XX:ActiveProcessorCount=2 -Xms256M -Xmx1G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xlog:gc*:file=/opt/pinot/gc-pinot-broker.log -Dlog4j2.configurationFile=/opt/pinot/etc/conf/pinot-broker-log4j2.xml -Dplugins.dir=/opt/pinot/plugins"
+          - name: LOG4J_CONSOLE_LEVEL
+            value: info
+        envFrom:
+          []
+        ports:
+          - containerPort: 8099
+            protocol: TCP
+            name: broker                  
+        volumeMounts:
+          - name: config
+            mountPath: /var/pinot/broker/config
+        livenessProbe:
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          failureThreshold: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+          httpGet:
+            path: /health
+            port: 8099
+        readinessProbe:
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          failureThreshold: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+          httpGet:
+            path: /health
+            port: 8099
+        resources:
+            requests:
+              memory: 1.25Gi
+      restartPolicy: Always
+      volumes:
+        - name: config
+          configMap:
+            name: release-name-pinot-broker-config
+---
+# Source: pinot/templates/controller/statefulset.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: release-name-pinot-controller
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: controller
+spec:
+  selector:
+    matchLabels:
+      app: pinot
+      release: release-name
+      component: controller
+  serviceName: release-name-pinot-controller-headless
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: pinot-0.3.0-SNAPSHOT
+        app: pinot
+        release: release-name
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        heritage: Helm
+        component: controller
+      annotations:
+        checksum/config: ee3073abb448053a09d52ba09889069d1c28d2d9626bb86c7c3e5f8f75a9736f
+        key1: value1
+        key2: value2
+    spec:
+      terminationGracePeriodSeconds: 30
+      serviceAccountName: release-name-pinot
+      securityContext:
+        {}
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      containers:
+      - name: controller
+        securityContext:
+          {}
+        image: "apachepinot/pinot:latest"
+        imagePullPolicy: Always
+        args: [ "StartController", "-configFileName", "/var/pinot/controller/config/pinot-controller.conf" ]
+        env:
+          - name: JAVA_OPTS
+            value: "-XX:ActiveProcessorCount=2 -Xms256M -Xmx1G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xlog:gc*:file=/opt/pinot/gc-pinot-controller.log -Dlog4j2.configurationFile=/opt/pinot/etc/conf/pinot-controller-log4j2.xml -Dplugins.dir=/opt/pinot/plugins"
+          - name: LOG4J_CONSOLE_LEVEL
+            value: info
+        envFrom:
+          []
+        ports:
+          - containerPort: 9000
+            protocol: TCP
+            name: controller
+        volumeMounts:
+          - name: config
+            mountPath: /var/pinot/controller/config
+          - name: data
+            mountPath: "/var/pinot/controller/data"
+        resources:
+            requests:
+              memory: 1.25Gi
+      restartPolicy: Always
+      volumes:
+      - name: config
+        configMap:
+          name: release-name-pinot-controller-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "1G"
+---
+# Source: pinot/templates/minion/statefulset.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: release-name-pinot-minion
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: minion
+spec:
+  selector:
+    matchLabels:
+      app: pinot
+      release: release-name
+      component: minion
+  serviceName: release-name-pinot-minion-headless
+  replicas: 0
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: pinot-0.3.0-SNAPSHOT
+        app: pinot
+        release: release-name
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        heritage: Helm
+        component: minion
+      annotations:
+        checksum/config: 90ef26d1f6a328fa278a6bf92d85315a5094e4b1c60b25e977a7409f649e21fe
+        key1: value1
+        key2: value2
+    spec:
+      terminationGracePeriodSeconds: 30
+      serviceAccountName: release-name-pinot
+      securityContext:
+        {}
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      containers:
+      - name: minion
+        securityContext:
+          {}
+        image: "apachepinot/pinot:latest"
+        imagePullPolicy: Always
+        args: [
+          "StartMinion",
+          "-clusterName", "pinot-quickstart",
+          "-zkAddress", "release-name-zookeeper:2181",
+          "-configFileName", "/var/pinot/minion/config/pinot-minion.conf"
+        ]
+        env:
+          - name: JAVA_OPTS
+            value: "-XX:ActiveProcessorCount=2 -Xms256M -Xmx1G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xlog:gc*:file=/opt/pinot/gc-pinot-minion.log -Dlog4j2.configurationFile=/opt/pinot/etc/conf/pinot-minion-log4j2.xml -Dplugins.dir=/opt/pinot/plugins"
+          - name: LOG4J_CONSOLE_LEVEL
+            value: info
+        envFrom:
+          []
+        ports:
+          - containerPort: 9514
+            protocol: TCP
+            name: minion
+        livenessProbe:
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          failureThreshold: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+          httpGet:
+            path: /health
+            port: 9514
+        readinessProbe:
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          failureThreshold: 10
+          successThreshold: 1
+          timeoutSeconds: 10
+          httpGet:
+            path: /health
+            port: 9514
+        volumeMounts:
+          - name: config
+            mountPath: /var/pinot/minion/config
+          - name: data
+            mountPath: "/var/pinot/minion/data"
+        resources:
+            requests:
+              memory: 1.25Gi
+      restartPolicy: Always
+      volumes:
+        - name: config
+          configMap:
+            name: release-name-pinot-minion-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: 4G
+---
+# Source: pinot/templates/server/statefulset.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: release-name-pinot-server
+  labels:
+    helm.sh/chart: pinot-0.3.0-SNAPSHOT
+    app: pinot
+    release: release-name
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    heritage: Helm
+    component: server
+spec:
+  selector:
+    matchLabels:
+      app: pinot
+      release: release-name
+      component: server
+  serviceName: release-name-pinot-server-headless
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: pinot-0.3.0-SNAPSHOT
+        app: pinot
+        release: release-name
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/managed-by: Helm
+        heritage: Helm
+        component: server
+      annotations:
+        checksum/config: 9afbdb5bf6c23556934cfe4f46d3916d6203064fe3d62854815f2426ef43c6c3
+        key1: value1
+        key2: value2
+    spec:
+      terminationGracePeriodSeconds: 30
+      serviceAccountName: release-name-pinot
+      securityContext:
+        {}
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      containers:
+      - name: server
+        securityContext:
+          {}
+        image: "apachepinot/pinot:latest"
+        imagePullPolicy: Always
+        args: [
+          "StartServer",
+          "-clusterName", "pinot-quickstart",
+          "-zkAddress", "release-name-zookeeper:2181",
+          "-configFileName", "/var/pinot/server/config/pinot-server.conf"
+        ]
+        env:
+          - name: JAVA_OPTS
+            value: "-Xms512M -Xmx1G -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xlog:gc*:file=/opt/pinot/gc-pinot-server.log -Dlog4j2.configurationFile=/opt/pinot/etc/conf/pinot-server-log4j2.xml -Dplugins.dir=/opt/pinot/plugins"
+          - name: LOG4J_CONSOLE_LEVEL
+            value: info
+        envFrom:
+          []
+        ports:
+          - containerPort: 8098
+            protocol: TCP
+            name: netty
+          - containerPort: 8097
+            protocol: TCP
+            name: admin
+        volumeMounts:
+          - name: config
+            mountPath: /var/pinot/server/config
+          - name: data
+            mountPath: "/var/pinot/server/data"
+        resources:
+            requests:
+              memory: 1.25Gi
+      restartPolicy: Always
+      volumes:
+        - name: config
+          configMap:
+            name: release-name-pinot-server-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: 4G
+---
+# Source: pinot/templates/broker/service-external.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pinot/templates/controller/service-external.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Source: pinot/templates/minion-stateless/pvc.yaml
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#

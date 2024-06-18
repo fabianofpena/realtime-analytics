@@ -1,0 +1,27 @@
+# mysql-connector.yaml
+apiVersion: kafka.strimzi.io/v1alpha1
+kind: KafkaConnector
+metadata:
+  name: mysql-source-connector
+  namespace: processing
+  labels:
+    strimzi.io/cluster: cluster
+spec:
+  class: io.debezium.connector.mysql.MySqlConnector
+  tasksMax: 1
+  config:
+    database.hostname: mysql.database.svc.cluster.local
+    database.port: "3306"
+    database.user: root
+    database.password: $(MYSQL_ROOT_PASSWORD)
+    database.server.id: "184054"
+    database.server.name: dbserver1
+    database.include.list: retail
+    database.history.kafka.bootstrap.servers: cluster-kafka-bootstrap:9092
+    database.history.kafka.topic: schema-changes.retail
+    include.schema.changes: "true"
+    table.include.list: "retail.products,retail.customers,retail.orders,retail.order_items,retail.addresses"
+    database.history.consumer.security.protocol: PLAINTEXT
+    database.history.producer.security.protocol: PLAINTEXT
+    transforms: unwrap
+    transforms.unwrap.type: io.debezium.transforms.ExtractNewRecordState
