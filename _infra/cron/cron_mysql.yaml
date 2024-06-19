@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: cron-mysql-api
 spec:
-  schedule: "*/1 * * * *"
+  schedule: "*/10 * * * *"
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:

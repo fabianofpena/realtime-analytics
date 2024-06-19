@@ -20,17 +20,49 @@ MYSQL_ROOT_PASSWORD=$(kubectl get secret --namespace database mysql -o jsonpath=
 # Port-forward
 kubectl port-forward svc/mysql 3306:3306 -n database
 
-# 3) Install Kafka Strimzi
+# 3) Install Strimzi Operator
 helm install \
       --namespace "processing" \
       --debug \
       --wait=false  \
       "kafka" -f values.yaml .
 
-# Install Apache Pinot namespace datastore
+# Install Kafka Broker
+kubectl apply -f strimzi/kafka/broker.yaml -n processing
+
+# Install KafkaConnect
+kubectl apply -f strimzi/kafka/kafka-connect.yaml -n processing
+
+# Install Schema Registry
+helm upgrade --install \
+      --namespace "processing" \
+      --debug \
+      --wait=false  \
+      "schema-registry" -f values.yaml .
+
+# Add as many as KafkaConnector you need
+kubectl apply -f strimzi/kafka/connectors/mysql-connector.yaml
+
+
+# 4) Install Apache Pinot namespace datastore
 helm install \
       --namespace "datastore" \
       --debug \
       --wait=false  \
       "pinot" -f values.yaml .
+```
 
+# Check Kafka Topics
+
+```sh
+
+# List Topics
+kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-topics.sh --list --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092
+
+# Read Data from Topics
+kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-console-consumer.sh --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092 --topic mysql_retail_addresses --from-beginning
+
+# Delete Topics
+kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-topics.sh --delete --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092 --topic mysql-retail-.retail.addresses
+
+```

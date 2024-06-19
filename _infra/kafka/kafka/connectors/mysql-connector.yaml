@@ -1,23 +1,32 @@
 apiVersion: kafka.strimzi.io/v1beta2
 kind: KafkaConnector
 metadata:
-  name: ingest-mysql-retail-json-90bc1352
+  name: ingest-mysql-retail-json
+  namespace: processing
   labels:
     strimzi.io/cluster: stream
 spec:
   class: io.debezium.connector.mysql.MySqlConnector
   tasksMax: 1
   config:
-    key.converter: org.apache.kafka.connect.json.JsonConverter
-    value.converter: org.apache.kafka.connect.json.JsonConverter
-    key.converter.schemas.enable: true
-    value.converter.schemas.enable: true
-    database.history.kafka.bootstrap.servers: stream-kafka-bootstrap.processing.svc.cluster.local:9092
-    database.history.kafka.topic: ddl-dbhistory-mysql-retail
     database.hostname: mysql.database.svc.cluster.local
     database.port: 3306
     database.user: root
-    database.password: password
+    database.password: HOxuRQgt38=$
     database.dbname: retail
     database.server.name: src.mysql
+    database.server.id: 184054
+    database.history.kafka.bootstrap.servers: stream-kafka-bootstrap.processing.svc.cluster.local:9092
+    database.history.kafka.topic: ddl_dbhistory_mysql_retail
+    schema.history.internal.kafka.bootstrap.servers: stream-kafka-bootstrap.processing.svc.cluster.local:9092
+    schema.history.internal.kafka.topic: ddl_dbhistory_mysql_retail
     table.whitelist: retail.customers,retail.orders,retail.order_items,retail.products,retail.addresses
+    topic.prefix: mysql_retail_
+    key.converter: org.apache.kafka.connect.json.JsonConverter
+    key.converter.schemas.enable: true
+    value.converter: org.apache.kafka.connect.json.JsonConverter
+    value.converter.schemas.enable: true
+    transforms: Reroute
+    transforms.Reroute.type: org.apache.kafka.connect.transforms.RegexRouter
+    transforms.Reroute.regex: "mysql_retail_(.*)\\.(.*)"
+    transforms.Reroute.replacement: "mysql_retail_$2"

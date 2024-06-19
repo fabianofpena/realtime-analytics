@@ -3,10 +3,15 @@ kind: KafkaConnect
 metadata:
   name: stream
   namespace: processing
+  annotations:
+    strimzi.io/use-connector-resources: "true"
+  labels:
+    app: stream
 spec:
   version: 3.6.0
   replicas: 1
   bootstrapServers: stream-kafka-bootstrap:9092
+  image: fabianofpena/kafka-connect-strimzi:3.6.1
   config:
     key.converter: org.apache.kafka.connect.json.JsonConverter
     value.converter: org.apache.kafka.connect.json.JsonConverter
