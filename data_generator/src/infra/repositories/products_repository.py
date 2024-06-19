@@ -9,7 +9,13 @@ class ProductsRepository:
 
     def insert_product(self, product_id: str, product_name: str, category: str, price: float, stock_quantity: int) -> None:
         with self.db_connection_handler as db:
-            product = ProductModel(product_id=product_id, product_name=product_name, category=category, price=price, stock_quantity=stock_quantity)
+            product = ProductModel(
+                product_id=product_id,
+                product_name=product_name,
+                category=category,
+                price=price,
+                stock_quantity=stock_quantity
+            )
             db.session.add(product)
             db.session.commit()
 

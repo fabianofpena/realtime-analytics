@@ -24,6 +24,9 @@ class AddressRegisterUseCase(AddressRegister):
         if not country:
             country = self.fake.country()
         
+        # Truncate country to 50 characters
+        country = country[:50]
+        
         self.address_repository.insert_address(address_id, customer_id, street, city, state, zipcode, country)
         return {
             "address_id": address_id,
