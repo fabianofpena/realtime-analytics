@@ -1,0 +1,23 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaConnector
+metadata:
+  name: ingest-mysql-retail-json-90bc1352
+  labels:
+    strimzi.io/cluster: stream
+spec:
+  class: io.debezium.connector.mysql.MySqlConnector
+  tasksMax: 1
+  config:
+    key.converter: org.apache.kafka.connect.json.JsonConverter
+    value.converter: org.apache.kafka.connect.json.JsonConverter
+    key.converter.schemas.enable: true
+    value.converter.schemas.enable: true
+    database.history.kafka.bootstrap.servers: stream-kafka-bootstrap.processing.svc.cluster.local:9092
+    database.history.kafka.topic: ddl-dbhistory-mysql-retail
+    database.hostname: mysql.database.svc.cluster.local
+    database.port: 3306
+    database.user: root
+    database.password: password
+    database.dbname: retail
+    database.server.name: src.mysql
+    table.whitelist: retail.customers,retail.orders,retail.order_items,retail.products,retail.addresses
