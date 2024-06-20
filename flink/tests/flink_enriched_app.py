@@ -154,7 +154,7 @@ def main():
     """)
 
     logger.info("Executing the StatementSet...")
-    statement_set.execute().wait()
+    statement_set.execute().print()
 
     logger.info("Flink job setup complete. The job should now be running.")
 

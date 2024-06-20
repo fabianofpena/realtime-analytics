@@ -20,14 +20,14 @@ spec:
         env:
         - name: KAFKA_BOOTSTRAP_SERVERS
           value: stream-kafka-bootstrap.processing.svc.cluster.local:9092
-        - name: KAFKA_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: kafka-secret
-              key: username
-        - name: KAFKA_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: kafka-secret
-              key: password
+        # - name: KAFKA_USERNAME
+        #   valueFrom:
+        #     secretKeyRef:
+        #       name: kafka-secret
+        #       key: username
+        # - name: KAFKA_PASSWORD
+        #   valueFrom:
+        #     secretKeyRef:
+        #       name: kafka-secret
+        #       key: password
       restartPolicy: Always

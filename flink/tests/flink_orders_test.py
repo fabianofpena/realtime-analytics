@@ -4,11 +4,9 @@ from dotenv import load_dotenv
 from pyflink.table import EnvironmentSettings, TableEnvironment
 from urllib.parse import quote
 
-# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load environment variables from .env file
 load_dotenv()
 
 kafka_bootstrap_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS')

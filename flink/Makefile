@@ -6,7 +6,7 @@ REGISTRY = fabianofpena
 # Alvos
 all: build tag push
 
-build:
+build: download_jars
 	@docker build --platform linux/amd64 -t $(IMAGE_NAME):$(TAG) .
 
 tag:
@@ -15,4 +15,7 @@ tag:
 push:
 	@docker push $(REGISTRY)/$(IMAGE_NAME):$(TAG)
 
-.PHONY: all build tag push
+download_jars:
+	sh jarfile_download.sh
+
+.PHONY: all build tag push download_jars
