@@ -16,8 +16,8 @@ def setup_table(table_env: TableEnvironment, table_name: str, topic: str, schema
     table_env.execute_sql(f"""
         CREATE TABLE {table_name} (
             {schema},
-            `event_time` TIMESTAMP_LTZ(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
-            `request_time` TIMESTAMP_LTZ(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
+            `event_time` TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
+            `request_time` TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
             `processing_time` AS PROCTIME()
         ) WITH (
             'connector' = 'kafka',
@@ -97,19 +97,19 @@ def main():
     table_env.execute_sql(f"""
         CREATE TABLE EnrichedOrders (
             `order_id` STRING,
-            `order_timestamp` TIMESTAMP_LTZ(3),
-            `total_amount` FLOAT,
             `customer_id` STRING,
+            `product_id` STRING,
+            `product_name` STRING,
             `customer_name` STRING,
             `email` STRING,
             `street` STRING,
             `city` STRING,
             `state` STRING,
             `zipcode` STRING,
-            `product_id` STRING,
+            `total_amount` FLOAT,
             `quantity` INT,
             `price` FLOAT,
-            `product_name` STRING,
+            `order_timestamp` TIMESTAMP_LTZ(3),
             `event_time` TIMESTAMP_LTZ(3),
             `request_time` TIMESTAMP_LTZ(3),
             `processing_time` TIMESTAMP_LTZ(3),
@@ -130,27 +130,27 @@ def main():
         INSERT INTO EnrichedOrders                                       
         SELECT 
             o.order_id,
-            o.order_timestamp,
-            o.total_amount,
             c.customer_id,
+            oi.product_id,
+            p.product_name,
             c.customer_name,
             c.email,
             a.street,
             a.city,
             a.state,
             a.zipcode,
-            oi.product_id,
+            o.total_amount,
             oi.quantity,
             oi.price,
-            p.product_name,
+            o.order_timestamp,
             o.event_time,
             o.request_time,
             o.processing_time
         FROM Orders o
-        JOIN Customers c ON o.customer_id = c.customer_id
-        JOIN Addresses a ON o.customer_id = a.customer_id
-        JOIN OrderItems oi ON o.order_id = oi.order_id
-        JOIN Products p ON oi.product_id = p.product_id
+        LEFT JOIN Customers c ON o.customer_id = c.customer_id
+        LEFT JOIN Addresses a ON o.customer_id = a.customer_id
+        LEFT JOIN OrderItems oi ON o.order_id = oi.order_id
+        LEFT JOIN Products p ON oi.product_id = p.product_id
     """)
 
     logger.info("Executing the StatementSet...")

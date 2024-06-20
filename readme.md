@@ -61,13 +61,33 @@ bin/kafka-topics.sh --list --bootstrap-server stream-kafka-bootstrap:9092
 # List Topics
 kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-topics.sh --list --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092
 
-# Read Data from Topics
+# Count Topis rows
+
+# Read Data from Raw Topics
+kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-console-consumer.sh --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092 --topic mysql_retail_addresses --from-beginning
+kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-console-consumer.sh --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092 --topic mysql_retail_customers --from-beginning
+kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-console-consumer.sh --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092 --topic mysql_retail_order_items --from-beginning
 kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-console-consumer.sh --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092 --topic mysql_retail_orders --from-beginning
+kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-console-consumer.sh --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092 --topic mysql_retail_products --from-beginning
+
+# Read Data from Enriched Topics
 kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-console-consumer.sh --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092 --topic enriched_orders --from-beginning
 
-kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic mysql_retail_orders --from-beginning
-
 # Delete Topics
-kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-topics.sh --delete --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092 --topic mysql-retail-.retail.addresses
+kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-topics.sh --delete --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092 --topic enriched_orders
 
 ```
+
+# Final Offsets
+kubectl exec -it stream-kafka-0 -n processing -- \
+  bin/kafka-run-class.sh kafka.tools.GetOffsetShell \
+  --broker-list stream-kafka-bootstrap.processing.svc.cluster.local:9092 \
+  --topic mysql_retail_orders \
+  --time -1
+
+# Initial Offsets
+kubectl exec -it stream-kafka-0 -n processing -- \
+  bin/kafka-run-class.sh kafka.tools.GetOffsetShell \
+  --broker-list stream-kafka-bootstrap.processing.svc.cluster.local:9092 \
+  --topic enriched_orders \
+  --time -2

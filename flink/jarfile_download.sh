@@ -9,7 +9,20 @@ FLINK_JDBC_CONNECTOR_JAR=https://repo.maven.apache.org/maven2/org/apache/flink/f
 
 mkdir -p ${JARS_DIR}
 
-wget -P ${JARS_DIR} ${KAFKA_CLIENTS_JAR}
-wget -P ${JARS_DIR} ${FLINK_CONNECTOR_BASE_JAR}
-wget -P ${JARS_DIR} ${MYSQL_CONNECTOR_JAR}
-wget -P ${JARS_DIR} ${FLINK_JDBC_CONNECTOR_JAR}
+# download a JAR if it doesn't already exist
+download_jar() {
+  local url=$1
+  local dir=$2
+  local file_name=$(basename ${url})
+
+  if [ -f "${dir}/${file_name}" ]; then
+    echo "${file_name} already exists, skipping download."
+  else
+    wget -P ${dir} ${url}
+  fi
+}
+
+download_jar ${KAFKA_CLIENTS_JAR} ${JARS_DIR}
+download_jar ${FLINK_CONNECTOR_BASE_JAR} ${JARS_DIR}
+download_jar ${MYSQL_CONNECTOR_JAR} ${JARS_DIR}
+download_jar ${FLINK_JDBC_CONNECTOR_JAR} ${JARS_DIR}

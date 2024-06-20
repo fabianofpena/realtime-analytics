@@ -4,9 +4,11 @@ from dotenv import load_dotenv
 from pyflink.table import EnvironmentSettings, TableEnvironment
 from urllib.parse import quote
 
+# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Load environment variables from .env file
 load_dotenv()
 
 kafka_bootstrap_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS')
@@ -15,8 +17,8 @@ def setup_table(table_env: TableEnvironment, table_name: str, topic: str, schema
     table_env.execute_sql(f"""
         CREATE TABLE {table_name} (
             {schema},
-            `event_time` TIMESTAMP_LTZ(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
-            `request_time` TIMESTAMP_LTZ(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
+            `event_time` TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
+            `request_time` TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
             `processing_time` AS PROCTIME()
         ) WITH (
             'connector' = 'kafka',

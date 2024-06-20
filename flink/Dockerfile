@@ -6,10 +6,13 @@ WORKDIR /src
 # Copia o código da aplicação Flink para o contêiner
 COPY . /src
 
+# Copia o arquivo requirements.txt para o diretório de trabalho do contêiner
+COPY requirements.txt /src/requirements.txt
+
 # Instala as dependências necessárias (por exemplo, pip para instalar pacotes Python)
 RUN apt-get update && \
     apt-get install -y python3-pip && \
-    pip3 install -r requirements.txt
+    pip3 install -r /src/requirements.txt
 
 # Cria um diretório para os arquivos JAR no contêiner
 RUN mkdir -p /opt/flink/lib

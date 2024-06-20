@@ -15,8 +15,8 @@ class KafkaTableFactory(TableRepository):
         table_env.execute_sql(f"""
             CREATE TABLE {table_config.name} (
                 {table_config.schema},
-                `event_time` TIMESTAMP_LTZ(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
-                `request_time` TIMESTAMP_LTZ(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
+                `event_time` TIMESTAMP(3) METADATA FROM 'value.source.timestamp' VIRTUAL,
+                `request_time` TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
                 `processing_time` AS PROCTIME()
             ) WITH (
                 'connector' = 'kafka',
