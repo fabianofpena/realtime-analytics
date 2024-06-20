@@ -17,7 +17,7 @@ spec:
         tls: true
       - name: external
         port: 9094
-        type: loadbalancer
+        type: cluster-ip
         tls: false
     config:
       default.replication.factor: 1

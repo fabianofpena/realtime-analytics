@@ -165,7 +165,7 @@ controller:
 
   external:
     enabled: true
-    type: LoadBalancer
+    type: ClusterIP
     port: 9000
     annotations: {}
 
