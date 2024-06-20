@@ -11,8 +11,7 @@ logger = logging.getLogger(__name__)
 # Load environment variables from .env file
 load_dotenv()
 
-# kafka_bootstrap_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS')
-kafka_bootstrap_servers = "k8s-processi-streamka-82a7554d06-3d8b9f7ea801fb2a.elb.us-east-2.amazonaws.com:9094"
+kafka_bootstrap_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS')
 
 def setup_table(table_env: TableEnvironment, table_name: str, topic: str, schema: str):
     table_env.execute_sql(f"""

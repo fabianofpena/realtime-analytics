@@ -1,0 +1,80 @@
+{
+    "schemaName": "enriched_orders",
+    "dimensionFieldSpecs": [{
+            "name": "order_id",
+            "dataType": "STRING"
+        },
+        {
+            "name": "customer_id",
+            "dataType": "STRING"
+        },
+        {
+            "name": "product_id",
+            "dataType": "STRING"
+        },
+        {
+            "name": "product_name",
+            "dataType": "STRING"
+        },
+        {
+            "name": "customer_name",
+            "dataType": "STRING"
+        },
+        {
+            "name": "email",
+            "dataType": "STRING"
+        },
+        {
+            "name": "street",
+            "dataType": "STRING"
+        },
+        {
+            "name": "city",
+            "dataType": "STRING"
+        },
+        {
+            "name": "state",
+            "dataType": "STRING"
+        },
+        {
+            "name": "zipcode",
+            "dataType": "STRING"
+        }
+    ],
+    "metricFieldSpecs": [{
+            "name": "total_amount",
+            "dataType": "FLOAT"
+        },
+        {
+            "name": "quantity",
+            "dataType": "INT"
+        },
+        {
+            "name": "price",
+            "dataType": "FLOAT"
+        }
+
+    ],
+    "dateTimeFieldSpecs": [{
+            "name": "order_timestamp",
+            "dataType": "STRING",
+            "format": "SIMPLE_DATE_FORMAT|yyyy-MM-dd'T'HH:mm:ss.SSS'Z'|UTC",
+            "granularity": "1:MILLISECONDS"
+        },
+        {
+            "name": "request_time",
+            "dataType": "STRING",
+            "format": "SIMPLE_DATE_FORMAT|yyyy-MM-dd'T'HH:mm:ss.SSS'Z'|UTC",
+            "granularity": "1:MILLISECONDS"
+        },
+        {
+            "name": "event_time",
+            "dataType": "STRING",
+            "format": "SIMPLE_DATE_FORMAT|yyyy-MM-dd'T'HH:mm:ss.SSS'Z'|UTC",
+            "granularity": "1:MILLISECONDS"
+        }
+    ],
+    "primaryKeyColumns": [
+        "order_id"
+    ]
+}
