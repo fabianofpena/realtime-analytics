@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Define o diretório raiz do seu projeto e o arquivo de saída
-ROOT_DIR="/Users/lucianopena/Dropbox/Data Engineering/kafka/kafka-flink-pinot/data_generator/src"
-OUTPUT_FILE="/Users/lucianopena/Dropbox/Data Engineering/kafka/kafka-flink-pinot/data_generator/architecture/scripts.txt"
+ROOT_DIR="/Users/lucianopena/Dropbox/Data Engineering/kafka/realtime-analytics/data_generator/src"
+OUTPUT_FILE="/Users/lucianopena/Dropbox/Data Engineering/kafka/realtime-analytics/data_generator/architecture/scripts.txt"
 
 # Limpa ou cria o arquivo de saída
 > "$OUTPUT_FILE"

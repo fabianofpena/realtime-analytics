@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink-app-deployment
+  namespace: processing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flink-app
+  template:
+    metadata:
+      labels:
+        app: flink-app
+    spec:
+      containers:
+      - name: flink-app
+        image: fabianofpena/retail-enrichment-app:1.3
+        imagePullPolicy: Always
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: stream-kafka-bootstrap.processing.svc.cluster.local:9092
+        - name: KAFKA_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: kafka-secret
+              key: username
+        - name: KAFKA_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kafka-secret
+              key: password
+      restartPolicy: Always
