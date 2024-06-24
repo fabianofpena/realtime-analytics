@@ -1,30 +1,25 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
 metadata:
-  name: flink-app-deployment
-  namespace: processing
+  name: python-example
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: flink-app
-  template:
-    metadata:
-      labels:
-        app: flink-app
-    spec:
-      containers:
-      - name: flink-app
-        image: fabianofpena/retail-enrichment-app:1.3
-        imagePullPolicy: Always
-        env:
-        - name: KAFKA_BOOTSTRAP_SERVERS
-          value: stream-kafka-bootstrap.processing.svc.cluster.local:9092
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "500m"
-          limits:
-            memory: "1Gi"
-            cpu: "1"
-      restartPolicy: Always
+  image: fabianofpena/retail-enrichment-app:1.6
+  flinkVersion: v1_17
+  flinkConfiguration:
+    taskmanager.numberOfTaskSlots: "4"
+    pipeline.jars: "local:///opt/flink/lib/flink-connector-base-1.17.2.jar,local:///opt/flink/lib/flink-connector-jdbc-3.1.0-1.17.jar,local:///opt/flink/lib/kafka-clients-2.8.0.jar,local:///opt/flink/lib/mysql-connector-java-8.0.27.jar,local:///opt/flink/lib/flink-sql-connector-kafka-1.17.2.jar"
+  serviceAccount: flink
+  jobManager:
+    resource:
+      memory: "4096Mi"
+      cpu: 1
+  taskManager:
+    resource:
+      memory: "4096Mi"
+      cpu: 1
+  job:
+    jarURI: local:///opt/flink/lib/flink-connector-base-1.17.2.jar
+    entryClass: "org.apache.flink.client.python.PythonDriver"
+    args: ["-pyclientexec", "/usr/local/bin/python3", "-py", "/opt/flink/usrlib/src/main.py"]
+    parallelism: 1
+    upgradeMode: stateless

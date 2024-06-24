@@ -5,14 +5,14 @@ from config.logging_config import setup_logging
 from infrastructure.flink_env import create_table_env
 from use_cases.setup_tables import setup_tables
 
-load_dotenv()
+logger = setup_logging()
+logger.info("Starting the Flink job...")
 
-def run():
-   
-    logger = setup_logging()
-    logger.info("Starting the Flink job...")
+logger.info(f"CLASSPATH: {os.environ.get('CLASSPATH')}")
 
-    kafka_bootstrap_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS')
+def run(kafka_bootstrap_servers):
+    logger.info(f"KAFKA_BOOTSTRAP_SERVERS: {kafka_bootstrap_servers}")
+    
     if not kafka_bootstrap_servers:
         logger.error("KAFKA_BOOTSTRAP_SERVERS is not set.")
         return

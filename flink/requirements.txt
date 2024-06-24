@@ -1,1 +1,2 @@
 python-dotenv
+apache-flink==1.17.2

@@ -20,6 +20,7 @@ curl -X POST \
 # Read data through Pinot's API
 
 ```sh
+kubectl port-forward svc/pinot-controller 9000:9000 -n datastore
 kubectl port-forward svc/pinot-broker 8099:8099 -n datastore
 
 curl -X POST \
