@@ -1,13 +1,39 @@
-# Infra Setop
+# Infra Setup
+
+## Create namespaces 
 
 ```sh
 # 1) create namespaces
 kubectl create namespace database
 kubectl create namespace processing
 kubectl create namespace datastore
+```
 
+## Deploy Flink Operator
 
-# 2) Install MySQL on database namespace
+```sh
+cd _infra/flink
+
+# Deploy cert-manager
+kubectl create -f https://github.com/jetstack/cert-manager/releases/download/v1.8.2/cert-manager.yaml
+
+# Deploy Flink Helm chart
+helm repo add flink-operator-repo https://downloads.apache.org/flink/flink-kubernetes-operator-1.7.0
+helm install \
+      --namespace "processing" \
+      --debug \
+      --wait=false  \
+      "flink" -f values.yaml .
+
+# Submit a testing job
+kubectl create -f https://raw.githubusercontent.com/apache/flink-kubernetes-operator/release-1.8/examples/basic.yaml
+```
+
+## Deploy MySQL data generator database
+
+```sh
+# Deploy MySQL helm chart
+cd _infra/mysql
 helm install \
       --namespace "database" \
       --debug \
@@ -19,8 +45,26 @@ MYSQL_ROOT_PASSWORD=$(kubectl get secret --namespace database mysql -o jsonpath=
 
 # Port-forward
 kubectl port-forward svc/mysql 3306:3306 -n database
+```
 
-# 3) Install Strimzi Operator
+## Install Apache Pinot
+
+```sh
+# Deploy Apache Pinot
+cd _infra/pinot
+helm install \
+      --namespace "datastore" \
+      --debug \
+      --wait=false  \
+      "pinot" -f values.yaml .
+
+```
+
+## Install Strimzi Operator and Kafka
+
+```sh
+# Deploy Strimzi Operator 
+cd _infra/strimzi
 helm install \
       --namespace "processing" \
       --debug \
@@ -42,41 +86,17 @@ helm upgrade --install \
 
 # Add as many as KafkaConnector you need
 kubectl apply -f strimzi/kafka/connectors/mysql-connector.yaml
-
-
-# 4) Install Apache Pinot namespace datastore
-helm install \
-      --namespace "datastore" \
-      --debug \
-      --wait=false  \
-      "pinot" -f values.yaml .
-
-# 5) Install Flink Operator
-kubectl create -f https://github.com/jetstack/cert-manager/releases/download/v1.8.2/cert-manager.yaml
-
-# install Flink Helm chart
-helm repo add flink-operator-repo https://downloads.apache.org/flink/flink-kubernetes-operator-1.7.0
-helm install \
-      --namespace "processing" \
-      --debug \
-      --wait=false  \
-      "flink" -f values.yaml .
-
-# Submit a testing job
-kubectl create -f https://raw.githubusercontent.com/apache/flink-kubernetes-operator/release-1.8/examples/basic.yaml
-
 ```
 
-# Check Kafka Topics
+## Validate Kafka Topics
 
 ```sh
+# Run kafka cli commands underneath the pod
 kubectl exec -it stream-kafka-0 -n processing -- /bin/bash
 bin/kafka-topics.sh --list --bootstrap-server stream-kafka-bootstrap:9092
 
 # List Topics
 kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-topics.sh --list --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092
-
-# Count Topis rows
 
 # Read Data from Raw Topics
 kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-console-consumer.sh --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092 --topic mysql_retail_addresses --from-beginning
@@ -91,8 +111,7 @@ kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-console-consumer.sh -
 # Delete Topics
 kubectl exec -it stream-kafka-0 -n processing -- bin/kafka-topics.sh --delete --bootstrap-server stream-kafka-bootstrap.processing.svc.cluster.local:9092 --topic enriched_orders
 
-```
-
+# Count Topics rows
 # Final Offsets
 kubectl exec -it stream-kafka-0 -n processing -- \
   bin/kafka-run-class.sh kafka.tools.GetOffsetShell \
@@ -106,3 +125,7 @@ kubectl exec -it stream-kafka-0 -n processing -- \
   --broker-list stream-kafka-bootstrap.processing.svc.cluster.local:9092 \
   --topic enriched_orders \
   --time -2
+```
+
+
+
